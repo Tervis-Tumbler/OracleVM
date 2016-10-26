@@ -82,7 +82,7 @@ Data:
   VolumeGroup = Generic_SAN_Volume_Group @ Unmanaged FibreChannel Storage Array  [FibreChannel Volume Group]
   San Server = Unmanaged FibreChannel Storage Array
 "@
-    $OVMPhysicalDiskList = (Get-OVMPhysicalDiskList -Computername $OVMCLIConnectioninformation.ComputerName -Port $OVMCLIConnectioninformation.Port -Credential $OVMCLIConnectioninformation.Credential)
+    $OVMPhysicalDiskList = (Get-OVMPhysicalDiskList -Credential $credential -ComputerName $Computername -Port $Port)
     $OVMPhysicalDiskList | % {
         $SCRIPTCommand += "show physicaldisk id=$($_.OVMDiskID);"
     }
@@ -100,7 +100,7 @@ function Get-OVMVMDiskMappingDetails{
         [Parameter(Mandatory)]$Credential
     )
 
-    $OVMVMDiskMappingList = Get-OVMVMDiskMappingList -Computername $OVMCLIConnectioninformation.ComputerName -Port $OVMCLIConnectioninformation.Port -Credential $OVMCLIConnectioninformation.Credential
+    $OVMVMDiskMappingList = Get-OVMVMDiskMappingList -Credential $credential -ComputerName $Computername -Port $Port
     $OVMVMDiskMappingList | %{
         $SCRIPTCommand += "show vmdiskmapping id=$($_.OVMDiskID);"
     }
@@ -151,8 +151,8 @@ Function Get-OVMPhysicalDisksNotAttached{
         [Parameter(Mandatory)]$Port,
         [Parameter(Mandatory)]$Credential
     )
-    $OVMPhysicalDiskDetailList = Get-OVMPhysicalDiskDetails -Computername $OVMCLIConnectioninformation.ComputerName -Port $OVMCLIConnectioninformation.Port -Credential $OVMCLIConnectioninformation.Credential -OVMPhysicalDiskList $OVMPhysicalDiskList
-    $OVMVMDiskMappingDetails = Get-OVMVMDiskMappingDetails -Computername $OVMCLIConnectioninformation.ComputerName -Port $OVMCLIConnectioninformation.Port -Credential $OVMCLIConnectioninformation.Credential -OVMVMDiskMappingList $OVMVMDiskMappingList
+    $OVMPhysicalDiskDetailList = Get-OVMPhysicalDiskDetails -Credential $credential -ComputerName $Computername -Port $Port
+    $OVMVMDiskMappingDetails = Get-OVMVMDiskMappingDetails -Credential $credential -ComputerName $Computername -Port $Port
     ForEach ($PhysicalDisk in $OVMPhysicalDiskDetailList){
         if($OVMVMDiskMappingDetails.DiskName -notcontains $PhysicalDisk.DiskName){
             $PhysicalDisk
@@ -160,3 +160,4 @@ Function Get-OVMPhysicalDisksNotAttached{
     }
 
 }
+
