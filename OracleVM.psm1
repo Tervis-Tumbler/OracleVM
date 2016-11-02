@@ -1,18 +1,58 @@
-﻿function Get-OVMCLIConnectionInformation {
+﻿Function Install-OracleVMPowershell{
+    Set-OracleVMCredentialID
+}
+
+Function Set-OracleVMCredentialIDPath {
+    Param (
+        [Parameter(Mandatory)]$OracleVMCredentialIDPath
+    )
+    [Environment]::SetEnvironmentVariable( "OracleVMCredentialIDPath", $OracleVMCredentialIDPath, "User" )
+}
+
+Function Get-OracleVMCredentialIDPath {
+    if ($env:OracleVMCredentialIDPath) {
+        $env:OracleVMCredentialIDPath
+    } else {
+        Throw "Set-OracleVMCredentialID has not been run yet or PowerShell needs to be closed and reopened to see that the `$env:OracleVMCredentialIDPath has a value"
+    }
+}
+
+Function Set-OracleVMCredentialID {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]$OracleVMCredentialID
+    )    
+    New-SecureStringFile -OutputFile $env:USERPROFILE\OracleVMCredentialID -SecureString $($OracleVMCredentialID | ConvertTo-SecureString -AsPlainText -Force)
+    Set-OracleVMCredentialIDPath -OracleVMCredentialIDPath $env:USERPROFILE\OracleVMCredentialID
+}
+
+Function Get-OracleVMCredentialID {
+    [CmdletBinding()]
+    param ()
+    Get-SecureStringFile -InputFile $(Get-OracleVMCredentialIDPath)
+}
+
+function Get-OVMCLIConnectionInformation {
+    $OracleVMCLIPasswordstateEntry = Get-PasswordstateEntryDetails -PasswordID "2613"
     $OVMCLIConnectionInformation = [pscustomobject][ordered]@{
-        ComputerName = "OVMM.tervis.prv"
-        Port = "10000"
+        ComputerName = $OracleVMCLIPasswordstateEntry.URL
+        Port = $OracleVMCLIPasswordstateEntry.GenericField1
         Credential = Get-PasswordstateCredential -PasswordID "2613"
     }
     $OVMCLIConnectionInformation
 }
 
 function Get-OVMVMDiskMappingList{
-    param(
-        [Parameter(Mandatory)]$Computername,
-        [Parameter(Mandatory)]$Port,
-        [Parameter(Mandatory)]$Credential
-    )
+#    param(
+#        [Parameter(Mandatory)]$Computername,
+#        [Parameter(Mandatory)]$Port,
+#        [Parameter(Mandatory)]$Credential
+#    )
+    $OVMCLIConnectionInformation = Get-OVMCLIConnectionInformation
+    $Computername = $OVMCLIConnectionInformation.ComputerName
+    $Port = $OVMCLIConnectionInformation.Port
+    $Credential = $OVMCLIConnectionInformation.Credential
+
     $OVMListVMDiskMappingTemplate = @"
   id:{OVMDiskID*:0004fb0000130000961a44e256fa4b31}  name:{OVMDiskMappingName:0004fb0000130000961a44e256fa4b31}
   id:{OVMDiskID*:0004fb000013000036c13078180c37ff}  name:{OVMDiskMappingName:0004fb000013000036c13078180c37ff}
@@ -28,11 +68,15 @@ function Get-OVMVMDiskMappingList{
 }
 
 function Get-OVMPhysicalDiskList{
-    param(
-        [Parameter(Mandatory)]$Computername,
-        [Parameter(Mandatory)]$Port,
-        [Parameter(Mandatory)]$Credential
-    )
+#    param(
+#        [Parameter(Mandatory)]$Computername,
+#        [Parameter(Mandatory)]$Port,
+#        [Parameter(Mandatory)]$Credential
+#    )
+    $OVMCLIConnectionInformation = Get-OVMCLIConnectionInformation
+    $Computername = $OVMCLIConnectionInformation.ComputerName
+    $Port = $OVMCLIConnectionInformation.Port
+    $Credential = $OVMCLIConnectionInformation.Credential
 
     $OVMListPhysicalDiskTemplate  = @"
   id:{OVMDiskID*:0004fb0000180000ad940807b7ce1f2a}  name:{OVMDiskName:ebsdb-prd_ebsdata2;}
@@ -49,11 +93,16 @@ function Get-OVMPhysicalDiskList{
 }
 
 function Get-OVMPhysicalDiskDetails{
-    param(
-        [Parameter(Mandatory)]$Computername,
-        [Parameter(Mandatory)]$Port,
-        [Parameter(Mandatory)]$Credential
-    )
+#    param(
+#        [Parameter(Mandatory)]$Computername,
+#        [Parameter(Mandatory)]$Port,
+#        [Parameter(Mandatory)]$Credential
+#    )
+    $OVMCLIConnectionInformation = Get-OVMCLIConnectionInformation
+    $Computername = $OVMCLIConnectionInformation.ComputerName
+    $Port = $OVMCLIConnectionInformation.Port
+    $Credential = $OVMCLIConnectionInformation.Credential
+
     $OVMShowPhysicalDiskTemplate = @"
 OVM> show physicaldisk id=0004fb0000180000c4f4751fb6765018
 Command: show physicaldisk id=0004fb0000180000c4f4751fb6765018
@@ -94,11 +143,15 @@ Data:
 }
 
 function Get-OVMVMDiskMappingDetails{
-    param(
-        [Parameter(Mandatory)]$Computername,
-        [Parameter(Mandatory)]$Port,
-        [Parameter(Mandatory)]$Credential
-    )
+#    param(
+#        [Parameter(Mandatory)]$Computername,
+#        [Parameter(Mandatory)]$Port,
+#        [Parameter(Mandatory)]$Credential
+#    )
+    $OVMCLIConnectionInformation = Get-OVMCLIConnectionInformation
+    $Computername = $OVMCLIConnectionInformation.ComputerName
+    $Port = $OVMCLIConnectionInformation.Port
+    $Credential = $OVMCLIConnectionInformation.Credential
 
     $OVMVMDiskMappingList = Get-OVMVMDiskMappingList -Credential $credential -ComputerName $Computername -Port $Port
     $OVMVMDiskMappingList | %{
@@ -146,11 +199,16 @@ function Get-OVMVMDiskMappingDetails{
 }
 
 Function Get-OVMPhysicalDisksNotAttached{
-    param(
-        [Parameter(Mandatory)]$Computername,
-        [Parameter(Mandatory)]$Port,
-        [Parameter(Mandatory)]$Credential
-    )
+#    param(
+#        [Parameter(Mandatory)]$Computername,
+#        [Parameter(Mandatory)]$Port,
+#        [Parameter(Mandatory)]$Credential
+#    )
+    $OVMCLIConnectionInformation = Get-OVMCLIConnectionInformation
+    $Computername = $OVMCLIConnectionInformation.ComputerName
+    $Port = $OVMCLIConnectionInformation.Port
+    $Credential = $OVMCLIConnectionInformation.Credential
+
     $OVMPhysicalDiskDetailList = Get-OVMPhysicalDiskDetails -Credential $credential -ComputerName $Computername -Port $Port
     $OVMVMDiskMappingDetails = Get-OVMVMDiskMappingDetails -Credential $credential -ComputerName $Computername -Port $Port
     ForEach ($PhysicalDisk in $OVMPhysicalDiskDetailList){
