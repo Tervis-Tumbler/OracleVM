@@ -219,3 +219,31 @@ Function Get-OVMPhysicalDisksNotAttached{
 
 }
 
+Function Get-OracleServerDefinition{
+    Param(
+        [Parameter(Mandatory)]
+        $Computername
+    )
+    $OracleServerDefinitions | where Computername -eq $Computername
+}
+
+function set-TervisOracleODBEEServerConfiguration{
+    Param(
+        [Parameter(Mandatory)]
+        $Computername
+    )
+    $FQDN = $Computername + ".tervis.prv"
+    $OracleLinuxDefaultRootCredential = Get-PasswordstateCredential -PasswordID "4040"
+    $SSHSession = New-SSHSession -Credential $OracleLinuxDefaultRootCredential -ComputerName $Computername -AcceptKey
+    $OracleServerDefinition = Get-OracleServerDefinition -Computername $Computername
+
+    ForEach ($DefinitionPreScript in $OracleServerDefinition.PreInstallScripts) {
+        Invoke-SSHCommand -SSHSession $(get-sshsession) -Command $script
+    }
+    Invoke-SSHCommand -SSHSession $(get-sshsession) -Command $OracleServerDefinition.PuppetConfiguration
+    Invoke-SSHCommand -SSHSession $(get-sshsession) -Command "puppet apply /etc/puppet/manifests/SFTPServer.pp"
+
+
+    Remove-SSHSession $SSHSession | Out-Null
+
+}
