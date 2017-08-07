@@ -35,7 +35,7 @@ Function Get-OracleVMCredentialID {
 function Get-OVMCLIConnectionInformation {
     $OracleVMCLIPasswordstateEntry = Get-PasswordstateEntryDetails -PasswordID "2613"
     $OVMCLIConnectionInformation = [pscustomobject][ordered]@{
-        ComputerName = ([URI]$OracleVMCLIPasswordstateEntry.URL).Host
+        ComputerName = $OracleVMCLIPasswordstateEntry.URL
         Port = $OracleVMCLIPasswordstateEntry.GenericField1
         Credential = Get-PasswordstateCredential -PasswordID "2613"
     }
@@ -79,12 +79,15 @@ function Get-OVMPhysicalDiskList{
     $Credential = $OVMCLIConnectionInformation.Credential
 
     $OVMListPhysicalDiskTemplate  = @"
+  id:{OVMDiskID*:0004fb00001800008188f5f91b172e9d}  name:{OVMDiskName:DGC (1)}
+  id:{OVMDiskID*:0004fb0000180000ab97f53fa7b80933}  name:{OVMDiskName:DGC (4)}
   id:{OVMDiskID*:0004fb0000180000ad940807b7ce1f2a}  name:{OVMDiskName:ebsdb-prd_ebsdata2;}
   id:{OVMDiskID*:0004fb00001800006fb85369964810a2}  name:{OVMDiskName:eps-odbee01_u01_500;}
-  id:{OVMDiskID*:0004fb0000180000597bf2f8ed83c402}  name:{OVMDiskName:ebsdb-prd_ebs-ebsdata;}
+# id:{OVMDiskID*:0004fb0000180000597bf2f8ed83c402}  name:{OVMDiskName:ebsdb-prd_ebs-ebsdata;}
 "@
     $SSHSession = New-SSHSession -Credential $credential -ComputerName $Computername -Port $Port -AcceptKey
     $SCRIPTCommand="list physicaldisk"
+    $SSHCommandString = "Invoke-SshCommand -computername $OVMCLIHost -Command `"$SCRIPTCommand `""
     $Output = $(Invoke-SSHCommand -SSHSession $(get-sshsession) -Command $SCRIPTCommand).Output
     Remove-SSHSession $SSHSession | Out-Null
     #$PhysicalDiskList = $output | ConvertFrom-String -TemplateContent $OVMListPhysicalDiskTemplate  
