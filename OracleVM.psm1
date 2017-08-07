@@ -35,7 +35,7 @@ Function Get-OracleVMCredentialID {
 function Get-OVMCLIConnectionInformation {
     $OracleVMCLIPasswordstateEntry = Get-PasswordstateEntryDetails -PasswordID "2613"
     $OVMCLIConnectionInformation = [pscustomobject][ordered]@{
-        ComputerName = $OracleVMCLIPasswordstateEntry.URL
+        ComputerName = ([URI]$OracleVMCLIPasswordstateEntry.URL).Host
         Port = $OracleVMCLIPasswordstateEntry.GenericField1
         Credential = Get-PasswordstateCredential -PasswordID "2613"
     }
