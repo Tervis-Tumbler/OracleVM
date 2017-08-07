@@ -85,7 +85,6 @@ function Get-OVMPhysicalDiskList{
 "@
     $SSHSession = New-SSHSession -Credential $credential -ComputerName $Computername -Port $Port -AcceptKey
     $SCRIPTCommand="list physicaldisk"
-    $SSHCommandString = "Invoke-SshCommand -computername $OVMCLIHost -Command `"$SCRIPTCommand `""
     $Output = $(Invoke-SSHCommand -SSHSession $(get-sshsession) -Command $SCRIPTCommand).Output
     Remove-SSHSession $SSHSession | Out-Null
     #$PhysicalDiskList = $output | ConvertFrom-String -TemplateContent $OVMListPhysicalDiskTemplate  
