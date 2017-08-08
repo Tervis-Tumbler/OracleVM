@@ -107,6 +107,19 @@ function Get-OVMPhysicalDiskDetails{
     $Credential = $OVMCLIConnectionInformation.Credential
 
     $OVMShowPhysicalDiskTemplate = @"
+OVM> show physicaldisk id=0004fb00001800008188f5f91b172e9d
+Command: show physicaldisk id=0004fb00001800008188f5f91b172e9d
+Status: Success
+Time: 2017-08-08 09:43:08,874 EDT
+Data: 
+  Name = {DISKNAME*:DGC (1)}
+  Id = {DiskID:0004fb00001800008188f5f91b172e9d}
+  Size (GiB) = {Size:200.0}
+  Shareable = No
+  Page83 ID = {SANID:3600601601110190080a4f954c48de311}
+  Thin Provision = Yes
+  VolumeGroup = Generic_SAN_Volume_Group @ Unmanaged FibreChannel Storage Array  [FibreChannel Volume Group]
+  San Server = Unmanaged FibreChannel Storage Array
 OVM> show physicaldisk id=0004fb0000180000c4f4751fb6765018
 Command: show physicaldisk id=0004fb0000180000c4f4751fb6765018
 Status: Success
@@ -130,6 +143,19 @@ Data:
   Size (GiB) = {Size:500.0}
   Shareable = No
   Page83 ID = {SANID:3600601603dc12e00505e0a5162a9e311}
+  Thin Provision = Yes
+  VolumeGroup = Generic_SAN_Volume_Group @ Unmanaged FibreChannel Storage Array  [FibreChannel Volume Group]
+  San Server = Unmanaged FibreChannel Storage Array
+OVM> show physicaldisk id=0004fb0000180000ad940807b7ce1f2a
+Command: show physicaldisk id=0004fb0000180000ad940807b7ce1f2a
+Status: Success
+Time: 2017-08-08 09:43:08,909 EDT
+Data: 
+  Name = {DISKNAME*:EBSAPPS-PRD_U01_New}
+  Id = {DiskID:0004fb0000180000ad940807b7ce1f2a}
+  Size (GiB) = {Size:2048.0}
+  Shareable = No
+  Page83 ID = {SANID:36006016020b038001bc5331d4f4ee411}
   Thin Provision = Yes
   VolumeGroup = Generic_SAN_Volume_Group @ Unmanaged FibreChannel Storage Array  [FibreChannel Volume Group]
   San Server = Unmanaged FibreChannel Storage Array
@@ -163,7 +189,8 @@ function Get-OVMVMDiskMappingDetails{
     $SSHSession = New-SSHSession -Credential $credential -ComputerName $Computername -Port $Port -AcceptKey
     $Output = $(Invoke-SSHCommand -SSHSession $(get-sshsession) -Command $SCRIPTCommand).Output
     Remove-SSHSession $SSHSession | Out-Null
-   
+    $OVMPhysicalDiskDetailList = Get-OVMPhysicalDiskDetails   
+
     
         $MappedVMDisklist = @()
         $Output = $Output.split("`n")
