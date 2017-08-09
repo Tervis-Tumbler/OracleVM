@@ -218,14 +218,54 @@ function Get-OVMVMDiskMappingDetails{
                 if($Entry.DiskID -like "*$($MappedVMDisk.DiskID)"){
                      $MappedVMDisk | Add-Member Size $Entry.Size
                      $MappedVMDisk | Add-Member SANID $Entry.SANID
+                     $MappedVMDisk | Add-Member LUNUID ($Entry.SANID.substring(1))
                 }
             }
             if(!$MappedVMDisk.SANID){
                 $MappedVMDisk | Add-Member Size "NA"
                 $MappedVMDisk | Add-Member SANID "NA"
+                $MappedVMDisk | Add-Member LUNUID "NA"
                 }
     }    
     $MappedVMDisklist
+}
+
+function Get-OVMStorageMappingDetails {
+    $VNXLUNs = Get-LUNSFromVNX -TervisStorageArraySelection All
+    $OVMDiskMappingDetails = Get-OVMVMDiskMappingDetails
+    Foreach ($OVMDiskMapping in $OVMDiskmappingdetails) {
+        if ($LUN = ($VNXLUNs | where {($_.LUNUID -replace ":","") -eq $OVMDiskMapping.LUNUID})) {
+           [pscustomobject][ordered]@{
+               VM = $OVMDiskMapping.VMName
+               VNXLUNName = $LUN.LUNName
+               OVMDiskName = $OVMDiskMapping.DiskName
+               DiskNumber = $OVMDiskMapping.Slot
+               Array = $LUN.Array
+               OVMDiskID = $OVMDiskMapping.DiskID
+               LUNUID =  if ($LUN.LUNUID){$LUN.LUNUID}else{"NA"}
+            }
+        }
+    
+    }
+}
+
+function Get-OVMGuestDiskDetails {
+    param(
+        [parameter(Mandatory)]$Computer
+    )
+    $OVMStorageMappingDetails = Get-OVMStorageMappingDetails
+    $LinuxStorageMapping = Get-LinuxStorageMapping -Hostname $Computer | where Devname -NotMatch "dm-"
+    Foreach ($LinuxDiskMapping in $LinuxStorageMapping){
+            if($Mapping = ($OVMStorageMappingDetails | where {$LinuxDiskMapping.Devname -eq ("xvd" + (Convert-NumberToLetter -Number $_.DiskNumber)) -and $_.VM -eq $Computer })){
+                $LinuxDiskMapping | Add-Member -MemberType NoteProperty -Name SANDisk -Value $Mapping.VNXLUNName -force
+                $LinuxDiskMapping | Add-Member -MemberType NoteProperty -Name Array -Value $Mapping.Array -force
+            }
+            else {
+                $LinuxDiskMapping | Add-Member -MemberType NoteProperty -Name SANDisk -Value "NA" -force
+                $LinuxDiskMapping | Add-Member -MemberType NoteProperty -Name Array -Value $Mapping.Array -force    
+            }
+    }
+    $LinuxStorageMapping
 }
 
 Function Get-OVMPhysicalDisksNotAttached{
