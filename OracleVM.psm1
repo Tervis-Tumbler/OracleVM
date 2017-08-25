@@ -160,6 +160,7 @@ Data:
   VolumeGroup = Generic_SAN_Volume_Group @ Unmanaged FibreChannel Storage Array  [FibreChannel Volume Group]
   San Server = Unmanaged FibreChannel Storage Array
 "@
+    $VNXLUNs = Get-LUNSFromVNX -TervisStorageArraySelection All
     $OVMPhysicalDiskList = (Get-OVMPhysicalDiskList -Credential $credential -ComputerName $Computername -Port $Port)
     $OVMPhysicalDiskList | % {
         $SCRIPTCommand += "show physicaldisk id=$($_.OVMDiskID);"
@@ -167,8 +168,21 @@ Data:
     $SSHSession = New-SSHSession -Credential $credential -ComputerName $Computername -Port $Port -AcceptKey
     $Output = $(Invoke-SSHCommand -SSHSession $(get-sshsession) -Command $SCRIPTCommand).Output
     Remove-SSHSession $SSHSession | Out-Null
-#    $PhysicalDiskDetailList = $output -replace "`r", "" | ConvertFrom-String -TemplateContent $OVMShowPhysicalDiskTemplate
-    $output -replace "`r", "" | ConvertFrom-String -TemplateContent $OVMShowPhysicalDiskTemplate
+    $PhysicalDiskDetailList = $output -replace "`r", "" | ConvertFrom-String -TemplateContent $OVMShowPhysicalDiskTemplate
+#    foreach ($PhysicalDisk in $PhysicalDiskDetailList){
+#        foreach ($LUN in $VNXLUNs){
+#            if (($LUN.LUNUID -replace ":","") -match ($PhysicalDisk.SANID).Substring(1)){
+#            $LUN = $VNXLUNs | where {($_.LUNUID -replace ":","") -match ($PhysicalDisk.SANID).Substring(1)}
+#            if ($LUN){
+#                $PhysicalDisk | Add-Member Array $LUN.Array
+#                Continue
+#            }
+#            else{
+#                $PhysicalDisk | Add-Member Array "NA"
+#            }
+#        }
+#    }
+    $PhysicalDiskDetailList
 }
 
 function Get-OVMVMDiskMappingDetails{
@@ -181,22 +195,22 @@ function Get-OVMVMDiskMappingDetails{
     $Computername = $OVMCLIConnectionInformation.ComputerName
     $Port = $OVMCLIConnectionInformation.Port
     $Credential = $OVMCLIConnectionInformation.Credential
-
+    $VNXLUNs = Get-LUNSFromVNX -TervisStorageArraySelection All
     $OVMVMDiskMappingList = Get-OVMVMDiskMappingList -Credential $credential -ComputerName $Computername -Port $Port
     $OVMVMDiskMappingList | %{
         $SCRIPTCommand += "show vmdiskmapping id=$($_.OVMDiskID);"
     }
     $SSHSession = New-SSHSession -Credential $credential -ComputerName $Computername -Port $Port -AcceptKey
-    $Output = $(Invoke-SSHCommand -SSHSession $(get-sshsession) -Command $SCRIPTCommand).Output
+    $RawVMDiskMappingOutput = $(Invoke-SSHCommand -SSHSession $(get-sshsession) -Command $SCRIPTCommand).Output
     Remove-SSHSession $SSHSession | Out-Null
     $OVMPhysicalDiskDetailList = Get-OVMPhysicalDiskDetails   
 
     
         $MappedVMDisklist = @()
-        $Output = $Output.split("`n")
-        $Output = $Output[0..($Output.Count - 2)]
+        $SplitRawVMDiskMappingOutput = $RawVMDiskMappingOutput.split("`n")
+        $TrimmedRawVMDiskMappingOutput= $SplitRawVMDiskMappingOutput[0..($SplitRawVMDiskMappingOutput.Count - 2)]
     do{
-        $CurrentDiskMapping = $Output[0..10]
+        $CurrentDiskMapping = $TrimmedRawVMDiskMappingOutput[0..10]
         $DiskIDLine = $CurrentDiskMapping[9].Trim() -replace " ","" -replace "\["," " -replace "\]","" -split "=" -split " "
         if ($DiskIDLine.count -lt 3){
             $Diskname = "NA"
@@ -210,21 +224,24 @@ function Get-OVMVMDiskMappingDetails{
             VMName = ($CurrentDiskMapping[10].Trim() -replace " ","" -replace "\["," " -replace "\]","" -split "=" -split " ")[2]
         }
         $MappedVMDiskList += $MappedVMDisk
-        $Output = $Output[11..($Output.count)]
-    }While($Output)
+        $TrimmedRawVMDiskMappingOutput = $TrimmedRawVMDiskMappingOutput[11..($TrimmedRawVMDiskMappingOutput.count)]
+    }While($TrimmedRawVMDiskMappingOutput)
 
     ForEach ($MappedVMDisk in $MappedVMDisklist){
             ForEach ($Entry in $OVMPhysicalDiskDetailList){
                 if($Entry.DiskID -like "*$($MappedVMDisk.DiskID)"){
+                    $Array = ($VNXLUNs | where {($_.LUNUID -replace ":","") -match ($Entry.SANID).Substring(1)}).Array
                      $MappedVMDisk | Add-Member Size $Entry.Size
                      $MappedVMDisk | Add-Member SANID $Entry.SANID
                      $MappedVMDisk | Add-Member LUNUID ($Entry.SANID.substring(1))
+                     $MappedVMDisk | Add-Member Array $Array
                 }
             }
             if(!$MappedVMDisk.SANID){
                 $MappedVMDisk | Add-Member Size "NA"
                 $MappedVMDisk | Add-Member SANID "NA"
                 $MappedVMDisk | Add-Member LUNUID "NA"
+                $MappedVMDisk | Add-Member Array "NA"
                 }
     }    
     $MappedVMDisklist
@@ -241,6 +258,7 @@ function Get-OVMStorageMappingDetails {
                OVMDiskName = $OVMDiskMapping.DiskName
                DiskNumber = $OVMDiskMapping.Slot
                Array = $LUN.Array
+               Size = ($LUN.LUNCapacity / 1kb)
                OVMDiskID = $OVMDiskMapping.DiskID
                LUNUID =  if ($LUN.LUNUID){$LUN.LUNUID}else{"NA"}
             }
@@ -258,10 +276,12 @@ function Get-OVMGuestDiskDetails {
     Foreach ($LinuxDiskMapping in $LinuxStorageMapping){
             if($Mapping = ($OVMStorageMappingDetails | where {$LinuxDiskMapping.Devname -eq ("xvd" + (Convert-NumberToLetter -Number $_.DiskNumber)) -and $_.VM -eq $Computer })){
                 $LinuxDiskMapping | Add-Member -MemberType NoteProperty -Name SANDisk -Value $Mapping.VNXLUNName -force
+                $LinuxDiskMapping | Add-Member -MemberType NoteProperty -Name Size -Value $Mapping.Size -force
                 $LinuxDiskMapping | Add-Member -MemberType NoteProperty -Name Array -Value $Mapping.Array -force
             }
             else {
                 $LinuxDiskMapping | Add-Member -MemberType NoteProperty -Name SANDisk -Value "NA" -force
+                $LinuxDiskMapping | Add-Member -MemberType NoteProperty -Name Size -Value "NA" -force
                 $LinuxDiskMapping | Add-Member -MemberType NoteProperty -Name Array -Value $Mapping.Array -force    
             }
     }
