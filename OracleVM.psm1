@@ -160,7 +160,7 @@ Data:
   VolumeGroup = Generic_SAN_Volume_Group @ Unmanaged FibreChannel Storage Array  [FibreChannel Volume Group]
   San Server = Unmanaged FibreChannel Storage Array
 "@
-    $VNXLUNs = Get-LUNSFromVNX -TervisStorageArraySelection All
+#    $VNXLUNs = Get-LUNSFromVNX -TervisStorageArraySelection All
     $OVMPhysicalDiskList = (Get-OVMPhysicalDiskList -Credential $credential -ComputerName $Computername -Port $Port)
     $OVMPhysicalDiskList | % {
         $SCRIPTCommand += "show physicaldisk id=$($_.OVMDiskID);"
@@ -170,17 +170,13 @@ Data:
     Remove-SSHSession $SSHSession | Out-Null
     $PhysicalDiskDetailList = $output -replace "`r", "" | ConvertFrom-String -TemplateContent $OVMShowPhysicalDiskTemplate
 #    foreach ($PhysicalDisk in $PhysicalDiskDetailList){
-#        foreach ($LUN in $VNXLUNs){
-#            if (($LUN.LUNUID -replace ":","") -match ($PhysicalDisk.SANID).Substring(1)){
-#            $LUN = $VNXLUNs | where {($_.LUNUID -replace ":","") -match ($PhysicalDisk.SANID).Substring(1)}
+#            $LUN = $VNXLUNs | where {($_.LUNUID -replace ":","") -like ($PhysicalDisk.SANID).Substring(1)}
 #            if ($LUN){
-#                $PhysicalDisk | Add-Member Array $LUN.Array
-#                Continue
+#                $PhysicalDisk | Add-Member Array $LUN.Array -Force
 #            }
 #            else{
-#                $PhysicalDisk | Add-Member Array "NA"
+#                $PhysicalDisk | Add-Member Array "NA" -Force
 #            }
-#        }
 #    }
     $PhysicalDiskDetailList
 }
@@ -298,11 +294,19 @@ Function Get-OVMPhysicalDisksNotAttached{
     $Computername = $OVMCLIConnectionInformation.ComputerName
     $Port = $OVMCLIConnectionInformation.Port
     $Credential = $OVMCLIConnectionInformation.Credential
-
+    $VNXLUNs = Get-LUNSFromVNX -TervisStorageArraySelection All
     $OVMPhysicalDiskDetailList = Get-OVMPhysicalDiskDetails -Credential $credential -ComputerName $Computername -Port $Port
     $OVMVMDiskMappingDetails = Get-OVMVMDiskMappingDetails -Credential $credential -ComputerName $Computername -Port $Port
     ForEach ($PhysicalDisk in $OVMPhysicalDiskDetailList){
         if($OVMVMDiskMappingDetails.DiskName -notcontains $PhysicalDisk.DiskName){
+            $LUN = $VNXLUNs | where {($_.LUNUID -replace ":","") -like ($PhysicalDisk.SANID).Substring(1)}
+            if ($LUN){
+                $PhysicalDisk | Add-Member Array $LUN.Array -Force
+            }
+            else{
+                $PhysicalDisk | Add-Member Array "NA" -Force
+            }
+
             $PhysicalDisk
         }
     }
@@ -336,4 +340,12 @@ function set-TervisOracleODBEEServerConfiguration{
 
     Remove-SSHSession $SSHSession | Out-Null
 
+}
+
+function Invoke-MatchOVMBlockIDtoGuestDeviceName {
+
+    
+    $Vdev = xm block-list $Domain
+    xenstore-ls ### match 'frontend' with 'dev' - coorelates Vdev to Guest devicename (/dev/xvd?)
+    xm block-detach $Domain $Vdev
 }
