@@ -427,10 +427,94 @@ sectors = "(?<Sectors>[^"]*)"
 info = "(?<Info>[^"]*)"
 sector-size = "(?<SectorSize>[^"]*)"
 "@
-
-
-
 }
+
+function invoke-OVMAPIRequest {
+    $URI= "https://inf-ovmmanager01/ovm/core/wsapi/soap"
+    
+    
+    
+    
+    $username = 'admin'  
+    $password = ''
+    $target = "Daily Whatsis Roundup"  
+    
+    $hdrs = @{"X-Requested-With"="powershell"}  
+    $base = "https://qualysapi.qualys.com/api/2.0/fo"  
+    $body = "action=login&username=$username&password=$password"  
+    Invoke-RestMethod -Headers $hdrs -Uri "$base/session/" -Method Post -Body $body -SessionVariable sess
+    
+    
+    
+    $username = "username"  
+    $password = "password"  
+    $password_base64 = ConvertTo-SecureString $password -AsPlainText -Force  
+    $creds = New-Object System.Management.Automation.PSCredential ($username, $password_base64)  
+    $headers = @{"X-Requested-With"="powershell"}  
+    $url = "https://qualysapi.qualys.com/about.php"  
+    Invoke-RestMethod -Headers $headers -Uri $url -Method 
+}
+
+function Invoke-OracleVMManagerAPICall{
+    param(
+        [parameter(Mandatory)]$Method,
+        [parameter(Mandatory)]$URIPath,
+        $InputJSON
+    )
+    
+    $OVMManagerPasswordstateEntryDetails = Get-PasswordstateEntryDetails -PasswordID 4157
+    $username = $OVMManagerPasswordstateEntryDetails.Username
+    $password = $OVMManagerPasswordstateEntryDetails.Password
+    $URL = "https://" + ([System.Uri]$OVMManagerPasswordstateEntryDetails.url).Authority + "/ovm/core/wsapi/rest" + $URIPath
+    add-type @"
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAllCertsPolicy : ICertificatePolicy {
+    public bool CheckValidationResult(ServicePoint srvPoint, X509Certificate certificate,
+                                      WebRequest request, int certificateProblem) {
+        return true;
+    }
+ }
+"@
+    [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+    $credPair = "$($username):$($password)"
+    $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+    $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+    $headers.Add('Authorization',"Basic $encodedCredentials")
+    $headers.Add('Accept',"application/json")
+    $headers.Add('Content-Type',"application/json")
+
+    if($Method -eq "GET"){
+        Invoke-WebRequest -Uri $URL -Method Get -Headers $headers -UseBasicParsing -Verbose
+    }
+    if($Method -eq "PUT"){
+        Invoke-WebRequest -Uri $url -Method Put -Headers $headers -Body $InputJSON -Verbose -UseBasicParsing
+    }
+#    $output = $responseData.Content | ConvertFrom-Json
+}
+function Get-OVMVirtualMachines {
+    param(
+        $Name
+    )
+    $VMListing = (Invoke-OracleVMManagerAPICall -Method get -URIPath "/Vm").content | ConvertFrom-Json 
+    if ($Name){
+        $VMListing | where name -eq $Name | select name,vmRunState,id
+    }
+    else {
+        $VMListing | select name,vmRunState,id
+    }
+}
+
+function Invoke-OVMSendMessagetoVM {
+    param(
+        [parameter(mandatory)]$VMID,
+        [parameter(Mandatory,ValueFromPipelineByPropertyName)]$JSON
+    )
+    Invoke-OracleVMManagerAPICall -Method put `
+    -URIPath "/Vm/$VMID/sendMessage?logFlag=Yes" `
+    -InputJSON $JSON
+}
+
 
 $XenstoreTemplate = @"
 tool = ""
