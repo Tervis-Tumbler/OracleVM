@@ -485,7 +485,8 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
     $headers.Add('Content-Type',"application/json")
 
     if($Method -eq "GET"){
-        Invoke-WebRequest -Uri $URL -Method Get -Headers $headers -UseBasicParsing -Verbose
+#        Invoke-WebRequest -Uri $URL -Method Get -Headers $headers -UseBasicParsing -Verbose
+        Invoke-RestMethod -Uri $URL -Method Get -Headers $headers -UseBasicParsing -Verbose
     }
     if($Method -eq "PUT"){
         Invoke-WebRequest -Uri $url -Method Put -Headers $headers -Body $InputJSON -Verbose -UseBasicParsing
@@ -498,12 +499,13 @@ function Get-OVMVirtualMachines {
     )
     $VMListing = (Invoke-OracleVMManagerAPICall -Method get -URIPath "/Vm").content | ConvertFrom-Json 
     if ($Name){
-        $VMListing | where name -eq $Name | select name,vmRunState,id
+        $VMListing | where name -eq $Name
     }
     else {
-        $VMListing | select name,vmRunState,id
+        $VMListing
     }
 }
+
 
 function Invoke-OVMSendMessagetoVM {
     param(
@@ -514,7 +516,6 @@ function Invoke-OVMSendMessagetoVM {
     -URIPath "/Vm/$VMID/sendMessage?logFlag=Yes" `
     -InputJSON $JSON
 }
-
 
 $XenstoreTemplate = @"
 tool = ""
