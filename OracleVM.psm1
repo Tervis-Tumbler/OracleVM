@@ -485,11 +485,10 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
     $headers.Add('Content-Type',"application/json")
 
     if($Method -eq "GET"){
-#        Invoke-WebRequest -Uri $URL -Method Get -Headers $headers -UseBasicParsing -Verbose
-        Invoke-RestMethod -Uri $URL -Method Get -Headers $headers -UseBasicParsing -Verbose
+        Invoke-RestMethod -Uri $URL -Method Get -Headers $headers -UseBasicParsing
     }
     if($Method -eq "PUT"){
-        Invoke-WebRequest -Uri $url -Method Put -Headers $headers -Body $InputJSON -Verbose -UseBasicParsing
+        Invoke-RestMethod -Uri $url -Method Put -Headers $headers -Body $InputJSON -UseBasicParsing
     }
 #    $output = $responseData.Content | ConvertFrom-Json
 }
@@ -497,7 +496,7 @@ function Get-OVMVirtualMachines {
     param(
         $Name
     )
-    $VMListing = (Invoke-OracleVMManagerAPICall -Method get -URIPath "/Vm").content | ConvertFrom-Json 
+    $VMListing = Invoke-OracleVMManagerAPICall -Method get -URIPath "/Vm"
     if ($Name){
         $VMListing | where name -eq $Name
     }
@@ -505,7 +504,6 @@ function Get-OVMVirtualMachines {
         $VMListing
     }
 }
-
 
 function Invoke-OVMSendMessagetoVM {
     param(
@@ -515,6 +513,56 @@ function Invoke-OVMSendMessagetoVM {
     Invoke-OracleVMManagerAPICall -Method put `
     -URIPath "/Vm/$VMID/sendMessage?logFlag=Yes" `
     -InputJSON $JSON
+}
+
+function Get-OVMJob {
+    param(
+        [parameter(ParameterSetName="ByID")]$JobID,
+        [parameter(ParameterSetName="AllJobs")]$StartTime,
+        [parameter(ParameterSetName="AllJobs")]$EndTime,
+        [parameter(ParameterSetName="AllJobs")]$MaxJobs,
+        [parameter(ParameterSetName="ActiveJobs")][switch]$Active,
+        [parameter(ParameterSetName="ByID")][switch]$Transcript
+    )
+
+    if ($PSCmdlet.ParameterSetName -eq "ByID"){
+        $URIPath = "/Job/$JobID"
+        if($Transcript){
+            $URIPath += "/transcript"
+        }
+    }
+    if ($PSCmdlet.ParameterSetName -eq "AllJobs"){
+        $URIPath = "/Job/id?startTime=$StartTime&endTime=$EndTime&maxJobs=$MaxJobs"
+    }
+    if ($PSCmdlet.ParameterSetName -eq "ActiveJobs"){
+        $URIPath = "/Job/active"
+    }
+    Invoke-OracleVMManagerAPICall -Method GET -URIPath $URIPath
+}
+
+function Invoke-OVMCloneVM {
+    param(
+        [parameter(mandatory)]$VMID,
+        [parameter(mandatory)]$ServerPoolID,
+        $RepositoryID,
+        $VMCloneDefinitionID,
+        $TemplateID = "False"
+    )
+        
+    $URIPath = "/Vm/$VMID/clone?serverPoolId=$ServerPoolID&createTemplate=false"
+    
+    if($RepositoryID){
+        $URIPath += "&repositoryId=$RepositoryID"
+    }
+    if($VMCloneDefinitionID){
+        $URIPath += "&vmCloneDefinitionId=$VMCloneDefinitionID&createTemplate=false"
+    }
+    $CloneResult = Invoke-OracleVMManagerAPICall -Method PUT -URIPath $URIPath
+    do{
+        Start-Sleep 1
+        $CloneJob = Get-OVMJob -JobID $CloneResult.id.value
+    }while($CloneJob.done -eq $false)
+    Get-OVMVirtualMachines -Name $CloneJob.resultId.name    
 }
 
 $XenstoreTemplate = @"
