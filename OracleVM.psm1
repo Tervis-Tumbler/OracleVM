@@ -460,16 +460,16 @@ function invoke-OVMAPIRequest {
 
 function Invoke-OracleVMManagerAPICall{
     param(
-        [parameter(Mandatory)]$Method,
-        [parameter(Mandatory)]$URIPath,
+        [parameter(ValueFromPipelineByPropertyName,Mandatory)]$Method,
+        [parameter(ValueFromPipelineByPropertyName,Mandatory)]$URIPath,
         $InputJSON
     )
-    
-    $OVMManagerPasswordstateEntryDetails = Get-PasswordstateEntryDetails -PasswordID 4157
-    $username = $OVMManagerPasswordstateEntryDetails.Username
-    $password = $OVMManagerPasswordstateEntryDetails.Password
-    $URL = "https://" + ([System.Uri]$OVMManagerPasswordstateEntryDetails.url).Authority + "/ovm/core/wsapi/rest" + $URIPath
-    add-type @"
+    begin{
+        $OVMManagerPasswordstateEntryDetails = Get-PasswordstateEntryDetails -PasswordID 4157
+        $username = $OVMManagerPasswordstateEntryDetails.Username
+        $password = $OVMManagerPasswordstateEntryDetails.Password
+        $URL = "https://" + ([System.Uri]$OVMManagerPasswordstateEntryDetails.url).Authority + "/ovm/core/wsapi/rest" + $URIPath
+        add-type @"
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 public class TrustAllCertsPolicy : ICertificatePolicy {
@@ -479,155 +479,167 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
     }
  }
 "@
-    [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
-    $credPair = "$($username):$($password)"
-    $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
-    $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-    $headers.Add('Authorization',"Basic $encodedCredentials")
-    $headers.Add('Accept',"application/json")
-    $headers.Add('Content-Type',"application/json")
-
-    if($Method -eq "GET"){
-        Invoke-RestMethod -Uri $URL -Method Get -Headers $headers -UseBasicParsing -verbose
+        [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+        $credPair = "$($username):$($password)"
+        $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+        $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+        $headers.Add('Authorization',"Basic $encodedCredentials")
+        $headers.Add('Accept',"application/json")
+        $headers.Add('Content-Type',"application/json")
     }
-    if($Method -eq "PUT"){
-        Invoke-RestMethod -Uri $url -Method Put -Headers $headers -Body $InputJSON -UseBasicParsing -verbose
+    process{
+        if($Method -eq "GET"){
+            Invoke-RestMethod -Uri $URL -Method Get -Headers $headers -UseBasicParsing -verbose
+        }
+        if($Method -eq "PUT"){
+            Invoke-RestMethod -Uri $url -Method Put -Headers $headers -Body $InputJSON -UseBasicParsing -verbose
+        }
+        if($Method -eq "POST"){
+            Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $InputJSON -UseBasicParsing -verbose
+        }
+        if($Method -eq "DELETE"){
+            Invoke-RestMethod -Uri $url -Method DELETE -Headers $headers -Body $InputJSON -UseBasicParsing -verbose
+        }
     }
-    if($Method -eq "POST"){
-        Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $InputJSON -UseBasicParsing -verbose
-    }
-    if($Method -eq "DELETE"){
-        Invoke-RestMethod -Uri $url -Method DELETE -Headers $headers -Body $InputJSON -UseBasicParsing -verbose
-    }
-#    $output = $responseData.Content | ConvertFrom-Json
 }
 function Get-OVMVirtualMachines {
     param(
-        [parameter(Mandatory,ParameterSetName="Name")]$Name,
-        [parameter(Mandatory,ParameterSetName="ID")]$ID
+        [parameter(ValueFromPipelineByPropertyName,Mandatory,ParameterSetName="Name")]$Name,
+        [parameter(ValueFromPipelineByPropertyName,Mandatory,ParameterSetName="ID")]$ID
     )
-    if ($ID){
-        Invoke-OracleVMManagerAPICall -Method GET -URIPath "/Vm/$VMID"
-    }
-    Else{
-        $VMListing = Invoke-OracleVMManagerAPICall -Method get -URIPath "/Vm"
-        if ($Name){
-            $VMListing | where name -eq $Name
+    process{
+        if ($ID){
+            Invoke-OracleVMManagerAPICall -Method GET -URIPath "/Vm/$VMID"
         }
-        else {
-            $VMListing
+        Else{
+            $VMListing = Invoke-OracleVMManagerAPICall -Method get -URIPath "/Vm"
+            if ($Name){
+                $VMListing | where name -eq $Name
+            }
+            else {
+                $VMListing
+            }
         }
     }
 }
 
 function Invoke-OVMSendMessagetoVM {
     param(
-        [parameter(mandatory)]$VMID,
-        [parameter(Mandatory,ValueFromPipelineByPropertyName)]$JSON
+        [parameter(ValueFromPipelineByPropertyName,mandatory)]$VMID,
+        [parameter(Mandatory,ValueFromPipeline)]$JSON
     )
-    Invoke-OracleVMManagerAPICall -Method put `
-    -URIPath "/Vm/$VMID/sendMessage?logFlag=Yes" `
-    -InputJSON $JSON
+    process{
+        Invoke-OracleVMManagerAPICall -Method put `
+        -URIPath "/Vm/$VMID/sendMessage?logFlag=Yes" `
+        -InputJSON $JSON
+    }
 }
 
 function Get-OVMJob {
     param(
-        [parameter(ParameterSetName="ByID")]$JobID,
-        [parameter(ParameterSetName="AllJobs")]$StartTime,
-        [parameter(ParameterSetName="AllJobs")]$EndTime,
-        [parameter(ParameterSetName="AllJobs")]$MaxJobs,
-        [parameter(ParameterSetName="ActiveJobs")][switch]$Active,
-        [parameter(ParameterSetName="ByID")][switch]$Transcript
+        [parameter(ValueFromPipelineByPropertyName,ParameterSetName="ByID")]$JobID,
+        [parameter(ValueFromPipelineByPropertyName,ParameterSetName="AllJobs")]$StartTime,
+        [parameter(ValueFromPipelineByPropertyName,ParameterSetName="AllJobs")]$EndTime,
+        [parameter(ValueFromPipelineByPropertyName,ParameterSetName="AllJobs")]$MaxJobs,
+        [parameter(ValueFromPipelineByPropertyName,ParameterSetName="ActiveJobs")][switch]$Active,
+        [parameter(ValueFromPipelineByPropertyName,ParameterSetName="ByID")][switch]$Transcript
     )
-
-    if ($PSCmdlet.ParameterSetName -eq "ByID"){
-        $URIPath = "/Job/$JobID"
-        if($Transcript){
-            $URIPath += "/transcript"
+    process{
+        if ($PSCmdlet.ParameterSetName -eq "ByID"){
+            $URIPath = "/Job/$JobID"
+            if($Transcript){
+                $URIPath += "/transcript"
+            }
         }
+        if ($PSCmdlet.ParameterSetName -eq "AllJobs"){
+            $URIPath = "/Job/id?startTime=$StartTime&endTime=$EndTime&maxJobs=$MaxJobs"
+        }
+        if ($PSCmdlet.ParameterSetName -eq "ActiveJobs"){
+            $URIPath = "/Job/active"
+        }
+        Invoke-OracleVMManagerAPICall -Method GET -URIPath $URIPath
     }
-    if ($PSCmdlet.ParameterSetName -eq "AllJobs"){
-        $URIPath = "/Job/id?startTime=$StartTime&endTime=$EndTime&maxJobs=$MaxJobs"
-    }
-    if ($PSCmdlet.ParameterSetName -eq "ActiveJobs"){
-        $URIPath = "/Job/active"
-    }
-    Invoke-OracleVMManagerAPICall -Method GET -URIPath $URIPath
 }
 
 function Invoke-OVMCloneVM {
     param(
-        [parameter(mandatory)]$VMID,
-        [parameter(mandatory)]$ServerPoolID,
-        $RepositoryID,
-        $VMCloneDefinitionID,
+        [parameter(ValueFromPipelineByPropertyName,mandatory)]$VMID,
+        [parameter(ValueFromPipelineByPropertyName,mandatory)]$ServerPoolID,
+        [parameter(ValueFromPipelineByPropertyName)]$RepositoryID,
+        [parameter(ValueFromPipelineByPropertyName)]$VMCloneDefinitionID,
         $TemplateID = "False"
     )
+    process{
+        $URIPath = "/Vm/$VMID/clone?serverPoolId=$ServerPoolID&createTemplate=false"
         
-    $URIPath = "/Vm/$VMID/clone?serverPoolId=$ServerPoolID&createTemplate=false"
-    
-    if($RepositoryID){
-        $URIPath += "&repositoryId=$RepositoryID"
+        if($RepositoryID){
+            $URIPath += "&repositoryId=$RepositoryID"
+        }
+        if($VMCloneDefinitionID){
+            $URIPath += "&vmCloneDefinitionId=$VMCloneDefinitionID&createTemplate=false"
+        }
+        $CloneResult = Invoke-OracleVMManagerAPICall -Method PUT -URIPath $URIPath
+        do{
+            Start-Sleep 1
+            $CloneJob = Get-OVMJob -JobID $CloneResult.id.value
+        }while($CloneJob.done -eq $false)
+        Get-OVMVirtualMachines -Name $CloneJob.resultId.name    
     }
-    if($VMCloneDefinitionID){
-        $URIPath += "&vmCloneDefinitionId=$VMCloneDefinitionID&createTemplate=false"
-    }
-    $CloneResult = Invoke-OracleVMManagerAPICall -Method PUT -URIPath $URIPath
-    do{
-        Start-Sleep 1
-        $CloneJob = Get-OVMJob -JobID $CloneResult.id.value
-    }while($CloneJob.done -eq $false)
-    Get-OVMVirtualMachines -Name $CloneJob.resultId.name    
 }
 
 function Get-OVMDiskMapping {
     param(
-        $DiskMappingID
+        [parameter(ValueFromPipelineByPropertyName)]$DiskMappingID
     )
-    if ($DiskMappingID){
-        Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VmDiskMapping/$DiskMappingID"
-    }
-    else {
-        Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VmDiskMapping"
+    process{
+        if ($DiskMappingID){
+            Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VmDiskMapping/$DiskMappingID"
+        }
+        else {
+            Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VmDiskMapping"
+        }
     }
 }
-
 function Get-OVMVirtualDisk {
     [CmdletBinding(DefaultParameterSetName="__AllParameterSets")]
     param(
-        [parameter(ParameterSetName="VirtualDiskID")]$VirtualDiskID,
-        [parameter(ParameterSetName="VMDiskMappingID")]$VMDiskMappingID
+        [parameter(ValueFromPipelineByPropertyName,ParameterSetName="VirtualDiskID")]$VirtualDiskID,
+        [parameter(ValueFromPipelineByPropertyName,ParameterSetName="VMDiskMappingID")]$VMDiskMappingID
     )
-    if ($VmDiskMappingID){
-        Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VmDiskMapping/$VmDiskMappingID/VirtualDisk"
+    process{
+        if ($VmDiskMappingID){
+            (Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VmDiskMapping/$VmDiskMappingID/VirtualDisk") | Where diskType -eq "VIRTUAL_DISK"
+        }
+        elseif ($VirtualDiskID) {
+            (Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VirtualDisk/$VirtualDiskID") | Where diskType -eq "VIRTUAL_DISK"
+        }
+        else {(Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VirtualDisk") | Where diskType -eq "VIRTUAL_DISK" }
     }
-    elseif ($VirtualDiskID) {
-        Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VirtualDisk/$VirtualDiskID"
-    }
-    else {Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VirtualDisk"}
 }
 
 function Rename-OVMVirtualMachine {
     param(
-        [parameter(mandatory)]$Name,
-        [parameter(mandatory)]$NewName,
+        [parameter(ValueFromPipelineByPropertyName,mandatory)]$Name,
+        [parameter(ValueFromPipelineByPropertyName,mandatory)]$NewName,
         $Description,
         [switch]$ASync
     )
-    $VM = Get-OVMVirtualMachines -Name $Name
-    
-    $VM.name = $NewName
-    if($description){
-        $VM.description = $Description
+    process{
+        $VM = Get-OVMVirtualMachines -Name $Name
+        
+        $VM.name = $NewName
+        if($description){
+            $VM.description = $Description
+        }
+        $RenameJSON = $VM | ConvertTo-Json
+        $ResultantJob = Invoke-OracleVMManagerAPICall -Method put -URIPath "/Vm/$($VM.ID.Value)" -InputJSON $RenameJSON
+        if(-not $ASync){
+            do{
+                Start-Sleep 1
+                $ResultantJob = Get-OVMJob -JobID $ResultantJob.id.value
+            }while($ResultantJob.done -eq $false)    
+        }
+        $ResultantJob
     }
-    $RenameJSON = $VM | ConvertTo-Json
-    $ResultantJob = Invoke-OracleVMManagerAPICall -Method put -URIPath "/Vm/$($VM.ID.Value)" -InputJSON $RenameJSON
-    if(-not $ASync){
-        do{
-            Start-Sleep 1
-            $ResultantJob = Get-OVMJob -JobID $ResultantJob.id.value
-        }while($ResultantJob.done -eq $false)    
-    }
-    $ResultantJob
 }
 
