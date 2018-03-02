@@ -503,6 +503,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
     }
 }
 function Get-OVMVirtualMachines {
+    [CmdletBinding(DefaultParameterSetName="__AllParameterSets")]
     param(
         [parameter(ValueFromPipelineByPropertyName,Mandatory,ParameterSetName="Name")]$Name,
         [parameter(ValueFromPipelineByPropertyName,Mandatory,ParameterSetName="ID")]$ID
@@ -517,7 +518,7 @@ function Get-OVMVirtualMachines {
                 $VMListing | where name -eq $Name
             }
             else {
-                $VMListing
+                #$VMListing
             }
         }
     }
@@ -561,7 +562,7 @@ function Get-OVMJob {
     }
 }
 
-function Invoke-OVMCloneVM {
+function New-OVMVirtualMachineClone {
     param(
         [parameter(ValueFromPipelineByPropertyName,mandatory)]$VMID,
         [parameter(ValueFromPipelineByPropertyName,mandatory)]$ServerPoolID,
@@ -619,13 +620,13 @@ function Get-OVMVirtualDisk {
 
 function Rename-OVMVirtualMachine {
     param(
-        [parameter(ValueFromPipelineByPropertyName,mandatory)]$Name,
+        [parameter(ValueFromPipelineByPropertyName,mandatory)]$VMID,
         [parameter(ValueFromPipelineByPropertyName,mandatory)]$NewName,
         $Description,
         [switch]$ASync
     )
     process{
-        $VM = Get-OVMVirtualMachines -Name $Name
+        $VM = Get-OVMVirtualMachines -ID $VMID
         
         $VM.name = $NewName
         if($description){
@@ -643,3 +644,46 @@ function Rename-OVMVirtualMachine {
     }
 }
 
+function Remove-OVMVirtualMachine {
+    param(
+        [parameter(mandatory)]$VMID,
+        [switch]$DeleteVirtualDisks,
+        [switch]$ASync
+        
+    )
+    $VM = Get-OVMVirtualMachines -ID $VMID
+    $VirtualDisks = $VM.vmDiskMappingIds.value | %{Get-OVMVirtualDisk -VMDiskMappingID $_}
+    $ResultantJob = Invoke-OracleVMManagerAPICall -Method DELETE -URIPath "/Vm/$VMID"
+    if(-not $ASync){
+        do{
+            Start-Sleep 1
+            $ResultantJob = Get-OVMJob -JobID $ResultantJob.id.value
+        }while($ResultantJob.done -eq $false)
+    }
+    if($DeleteVirtualDisks){
+        $VirtualDisks | %{$ResultantJob = Remove-OVMVirtualDisk -VirtualDiskID $_.id.value -RepositoryID $_.repositoryid.value
+            if(-not $ASync){
+                do{
+                    Start-Sleep 1
+                    $ResultantJob = Get-OVMJob -JobID $ResultantJob.id.value
+                }while($ResultantJob.done -eq $false)
+            }
+        }
+    }
+}
+
+function Remove-OVMVirtualDisk {
+    param(
+        [parameter(ValueFromPipelineByPropertyName,mandatory)]$VirtualDiskID,
+        [parameter(ValueFromPipelineByPropertyName,mandatory)]$RepositoryID,
+        [switch]$ASync
+    )
+    $ResultantJob = Invoke-OracleVMManagerAPICall -Method DELETE -URIPath "/Repository/$RepositoryID/VirtualDisk/$VirtualDiskId"
+    if(-not $ASync){
+        do{
+            Start-Sleep 1
+            $ResultantJob = Get-OVMJob -JobID $ResultantJob.id.value
+        }while($ResultantJob.done -eq $false)
+    }
+    $ResultantJob
+}
