@@ -485,23 +485,35 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
     $headers.Add('Content-Type',"application/json")
 
     if($Method -eq "GET"){
-        Invoke-RestMethod -Uri $URL -Method Get -Headers $headers -UseBasicParsing
+        Invoke-RestMethod -Uri $URL -Method Get -Headers $headers -UseBasicParsing -verbose
     }
     if($Method -eq "PUT"){
-        Invoke-RestMethod -Uri $url -Method Put -Headers $headers -Body $InputJSON -UseBasicParsing
+        Invoke-RestMethod -Uri $url -Method Put -Headers $headers -Body $InputJSON -UseBasicParsing -verbose
+    }
+    if($Method -eq "POST"){
+        Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $InputJSON -UseBasicParsing -verbose
+    }
+    if($Method -eq "DELETE"){
+        Invoke-RestMethod -Uri $url -Method DELETE -Headers $headers -Body $InputJSON -UseBasicParsing -verbose
     }
 #    $output = $responseData.Content | ConvertFrom-Json
 }
 function Get-OVMVirtualMachines {
     param(
-        $Name
+        [parameter(Mandatory,ParameterSetName="Name")]$Name,
+        [parameter(Mandatory,ParameterSetName="ID")]$ID
     )
-    $VMListing = Invoke-OracleVMManagerAPICall -Method get -URIPath "/Vm"
-    if ($Name){
-        $VMListing | where name -eq $Name
+    if ($ID){
+        Invoke-OracleVMManagerAPICall -Method GET -URIPath "/Vm/$VMID"
     }
-    else {
-        $VMListing
+    Else{
+        $VMListing = Invoke-OracleVMManagerAPICall -Method get -URIPath "/Vm"
+        if ($Name){
+            $VMListing | where name -eq $Name
+        }
+        else {
+            $VMListing
+        }
     }
 }
 
