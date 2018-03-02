@@ -577,6 +577,57 @@ function Invoke-OVMCloneVM {
     Get-OVMVirtualMachines -Name $CloneJob.resultId.name    
 }
 
+function Get-OVMDiskMapping {
+    param(
+        $DiskMappingID
+    )
+    if ($DiskMappingID){
+        Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VmDiskMapping/$DiskMappingID"
+    }
+    else {
+        Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VmDiskMapping"
+    }
+}
+
+function Get-OVMVirtualDisk {
+    [CmdletBinding(DefaultParameterSetName="__AllParameterSets")]
+    param(
+        [parameter(ParameterSetName="VirtualDiskID")]$VirtualDiskID,
+        [parameter(ParameterSetName="VMDiskMappingID")]$VMDiskMappingID
+    )
+    if ($VmDiskMappingID){
+        Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VmDiskMapping/$VmDiskMappingID/VirtualDisk"
+    }
+    elseif ($VirtualDiskID) {
+        Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VirtualDisk/$VirtualDiskID"
+    }
+    else {Invoke-OracleVMManagerAPICall -Method GET -URIPath "/VirtualDisk"}
+}
+
+function Rename-OVMVirtualMachine {
+    param(
+        [parameter(mandatory)]$Name,
+        [parameter(mandatory)]$NewName,
+        $Description,
+        [switch]$ASync
+    )
+    $VM = Get-OVMVirtualMachines -Name $Name
+    
+    $VM.name = $NewName
+    if($description){
+        $VM.description = $Description
+    }
+    $RenameJSON = $VM | ConvertTo-Json
+    $ResultantJob = Invoke-OracleVMManagerAPICall -Method put -URIPath "/Vm/$($VM.ID.Value)" -InputJSON $RenameJSON
+    if(-not $ASync){
+        do{
+            Start-Sleep 1
+            $ResultantJob = Get-OVMJob -JobID $ResultantJob.id.value
+        }while($ResultantJob.done -eq $false)    
+    }
+    $ResultantJob
+}
+
 $XenstoreTemplate = @"
 tool = ""
  xenstored = ""
