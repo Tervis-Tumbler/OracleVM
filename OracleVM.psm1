@@ -432,3 +432,16 @@ sector-size = "(?<SectorSize>[^"]*)"
 "@
 }
 
+function Install-OVMTemplatePackages{
+    yum install ovmd xenstoreprovider python-simplejson ovm-template-config
+    systemctl enable ovmd.service
+    systemctl enable ovm-template-initial-config.service
+    systemctl start ovmd.service
+}
+
+function Invoke-OVMPrepareTemplateVMForFirstBoot{
+    ovmd -s cleanup
+    systemctl start ovm-template-initial-config
+    set -i 's/^INITIAL_CONFIG=.*/INITIAL_CONFIG=yes/g' /etc/sysconfig/ovm-template-initial-config
+    ###Shutdown###
+}
