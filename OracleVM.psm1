@@ -443,9 +443,8 @@ function Install-OVMTemplatePackages{
 }
 
 function Invoke-OVMPrepareTemplateVMForFirstBoot{
-    systemctl start ovm-template-initial-config
     ovmd -s cleanup
-    set -i 's/^INITIAL_CONFIG=.*/INITIAL_CONFIG=yes/g' /etc/sysconfig/ovm-template-initial-config
+    sed -i 's/^INITIAL_CONFIG=.*/INITIAL_CONFIG=yes/g' /etc/sysconfig/ovm-template-initial-config
     ###Shutdown###
 }
 
@@ -456,7 +455,7 @@ function Add-NodeOracleVMProperty {
     )
     process {
         $Node | Add-Member -MemberType NoteProperty -Name VM -PassThru:$PassThru -Force -Value $(
-            Get-OVMVirtualMachines -InformationAction $Node.ComputerName
+            Get-OVMVirtualMachines -Name $Node.ComputerName
         )        
     }
 }
