@@ -433,15 +433,48 @@ sector-size = "(?<SectorSize>[^"]*)"
 }
 
 function Install-OVMTemplatePackages{
-    yum install ovmd xenstoreprovider python-simplejson ovm-template-config
+    rm -F /etc/yum.repos.d/public-yum-ol7.repo
+    curl -o /etc/yum.repos.d/public-yum-ol7.repo http://public-yum.oracle.com/public-yum-ol7.repo
+    sed -i -e '/\[ol7_addons\]/,/^\[/s/enabled=0/enabled=1/' /etc/yum.repos.d/public-yum-ol7.repo
+    yum -y install ovmd xenstoreprovider python-simplejson ovm-template-config ovm-template-config-authentication ovm-template-config-network
     systemctl enable ovmd.service
     systemctl enable ovm-template-initial-config.service
     systemctl start ovmd.service
 }
 
 function Invoke-OVMPrepareTemplateVMForFirstBoot{
-    ovmd -s cleanup
     systemctl start ovm-template-initial-config
+    ovmd -s cleanup
     set -i 's/^INITIAL_CONFIG=.*/INITIAL_CONFIG=yes/g' /etc/sysconfig/ovm-template-initial-config
     ###Shutdown###
+}
+
+function Add-NodeOracleVMProperty {
+    param (
+        [Parameter(ValueFromPipeline)]$Node,
+        [Switch]$PassThru
+    )
+    process {
+        $Node | Add-Member -MemberType NoteProperty -Name VM -PassThru:$PassThru -Force -Value $(
+            Get-OVMVirtualMachines -InformationAction $Node.ComputerName
+        )        
+    }
+}
+
+function Add-NodeOracleIPAddressProperty {
+    param (
+        [Parameter(ValueFromPipeline)]$Node,
+        [Switch]$PassThru
+    )
+    process {
+        $VM = Get-OVMVirtualMachines -Name $Node.Computername
+        $VirtualNIC = Get-OVMVirtualNic -VirtualNicID $vm.virtualnicids.value
+        $MacAddress = Get-OVMVirtualNicMacAddress -VirtualNicID $VirtualNIC.id.value
+
+        $Node | Add-Member -MemberType ScriptProperty -Force -Name IPAddress -Value {
+            $VMNetworkMacAddress = ($MacAddress -replace ':', '-')
+            Find-DHCPServerv4LeaseIPAddress -MACAddressWithDashes $VMNetworkMacAddress -AsString
+        }
+        if ($PassThru) { $Node }
+    }
 }
