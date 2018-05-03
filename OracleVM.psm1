@@ -466,14 +466,61 @@ function Add-NodeOracleIPAddressProperty {
         [Switch]$PassThru
     )
     process {
-        $VM = Get-OVMVirtualMachines -Name $Node.Computername
-        $VirtualNIC = Get-OVMVirtualNic -VirtualNicID $vm.virtualnicids.value
-        $MacAddress = Get-OVMVirtualNicMacAddress -VirtualNicID $VirtualNIC.id.value
-
         $Node | Add-Member -MemberType ScriptProperty -Force -Name IPAddress -Value {
+            $VirtualNIC = Get-OVMVirtualNic -VirtualNicID $This.VM.virtualnicids.value
+            $MacAddress = Get-OVMVirtualNicMacAddress -VirtualNicID $VirtualNIC.id.value
             $VMNetworkMacAddress = ($MacAddress -replace ':', '-')
             Find-DHCPServerv4LeaseIPAddress -MACAddressWithDashes $VMNetworkMacAddress -AsString
         }
         if ($PassThru) { $Node }
     }
+}
+
+function Remove-TervisOracleVM {
+    [CmdletBinding()]
+    param(
+        [parameter(Mandatory, ValueFromPipeline)]$VM,
+        [Switch]$DeleteVirtualDisks
+    )
+    process {
+        $VirtualNIC = Get-OVMVirtualNic -VirtualNicID $vm.virtualnicids.value
+        $MacAddress = Get-OVMVirtualNicMacAddress -VirtualNicID $VirtualNIC.id.value
+        $VMNetworkMacAddress = ($MacAddress -replace ':', '-')
+        $VM.ID | Stop-OVMVirtualMachine
+        Remove-TervisDHCPReservationAndLease -MacAddressWithDashes $VMNetworkMacAddress
+        Remove-TervisDNSRecord -ComputerName $VM.Name
+        Remove-TervisADComputerObject -ComputerName $VM.Name
+
+#        if ($DeleteVHDs) {
+#            Invoke-Command -ComputerName $VM.ComputerName -ScriptBlock {
+#                $Using:VM.Name | 
+#                Get-VMHardDiskDrive | 
+#                Remove-Item -Confirm
+#            }
+#        }
+        if($DeleteVirtualDisks){
+            $VM | Remove-OVMVirtualMachine -DeleteVirtualDisks    
+        }
+        else{
+            $VM | Remove-OVMVirtualMachine
+        }
+        Remove-TervisApplicationNodeRDMSession -ComputerName $VM.Name
+
+    }
+}
+
+function Set-TervisDHCPForOracleVM {
+    param(
+        [parameter(Mandatory, ValueFromPipeline)]$VM,
+        [Parameter(Mandatory)]$DHCPScope,
+        [switch]$PassThru
+    )
+    $VirtualNIC = Get-OVMVirtualNic -VirtualNicID $vm.virtualnicids.value
+    $MacAddress = Get-OVMVirtualNicMacAddress -VirtualNicID $VirtualNIC.id.value
+    $VMNetworkMacAddress = ($MacAddress -replace ':', '-')
+    $DHCPServerName = Get-DhcpServerInDC | select -First 1 -ExpandProperty DNSName
+    $FreeIPAddress = $DHCPScope | Get-DhcpServerv4FreeIPAddress -ComputerName $DHCPServerName
+    $DHCPScope | Add-DhcpServerv4Reservation -ClientId $VMNetworkMacAddress -ComputerName $DHCPServerName -IPAddress $FreeIPAddress -Name $VM.Name -Description $VM.Name
+
+    if($PassThru) {$VM}
 }
