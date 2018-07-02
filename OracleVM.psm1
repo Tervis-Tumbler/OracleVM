@@ -36,12 +36,11 @@ Function Get-OracleVMCredentialID {
 }
 
 function Get-OVMCLIConnectionInformation {
-    $OracleVMCLIPasswordstateEntry = Get-PasswordstateEntryDetails -PasswordID "2613"
+    $OracleVMCLIPasswordstateEntry = Get-PasswordstatePassword -ID "4157"
     $OVMCLIConnectionInformation = [pscustomobject][ordered]@{
-#        ComputerName = $OracleVMCLIPasswordstateEntry.URL
         ComputerName = ([System.Uri]$OracleVMCLIPasswordstateEntry.URL).host
         Port = $OracleVMCLIPasswordstateEntry.GenericField1
-        Credential = Get-PasswordstateCredential -PasswordID "2613"
+        Credential = Get-PasswordstatePassword -ID "4157" -AsCredential
     }
     $OVMCLIConnectionInformation
 }
@@ -330,7 +329,7 @@ function set-TervisOracleODBEEServerConfiguration{
         $Computername
     )
     $FQDN = $Computername + ".tervis.prv"
-    $OracleLinuxDefaultRootCredential = Get-PasswordstateCredential -PasswordID "4040"
+    $OracleLinuxDefaultRootCredential = Get-PasswordstatePassword -ID "4040" -AsCredential
     $SSHSession = New-SSHSession -Credential $OracleLinuxDefaultRootCredential -ComputerName $Computername -AcceptKey
     $OracleServerDefinition = Get-OracleServerDefinition -Computername $Computername
 
