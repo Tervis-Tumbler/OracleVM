@@ -36,11 +36,18 @@ Function Get-OracleVMCredentialID {
 }
 
 function Get-OVMCLIConnectionInformation {
+    param(
+        [switch]$IncludePlainText
+    )
     $OracleVMCLIPasswordstateEntry = Get-PasswordstatePassword -ID "4157"
     $OVMCLIConnectionInformation = [pscustomobject][ordered]@{
         ComputerName = ([System.Uri]$OracleVMCLIPasswordstateEntry.URL).host
         Port = $OracleVMCLIPasswordstateEntry.GenericField1
         Credential = Get-PasswordstatePassword -ID "4157" -AsCredential
+    }
+    if($IncludePlainText){
+        $OVMCLIConnectionInformation | Add-Member -MemberType NoteProperty -Name Username -Value $($OracleVMCLIPasswordstateEntry.username) -PassThru |
+        Add-Member -MemberType NoteProperty Password -Value $($OracleVMCLIPasswordstateEntry.password)
     }
     $OVMCLIConnectionInformation
 }
@@ -315,13 +322,6 @@ Function Get-OVMPhysicalDisksNotAttached{
 
 }
 
-Function Get-OracleServerDefinition{
-    Param(
-        [Parameter(Mandatory)]
-        $Computername
-    )
-    $OracleServerDefinitions | where Computername -eq $Computername
-}
 
 function set-TervisOracleODBEEServerConfiguration{
     Param(
