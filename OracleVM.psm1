@@ -523,3 +523,20 @@ function Set-TervisDHCPForOracleVM {
 
     if($PassThru) {$VM}
 }
+
+function Invoke-OVMVMControlOnRemoteServer{
+    param(
+        [parameter(Mandatory)]$VMName,
+        [parameter(Mandatory)]$Command,
+        [parameter(Mandatory)]$CPUThreadList,
+        [parameter(Mandatory)]$SSHSession
+    )
+    $OracleVMAdminPasswordstateDetails = Get-PasswordstatePassword -ID 4157
+    $SSHCommand = "ovm_vmcontrol -username $($OracleVMAdminPasswordstateDetails.Username) -p $($OracleVMAdminPasswordstateDetails.Password)  "
+    
+    Invoke-SSHCommand -SSHSession $SSHSession -Command $SSHCommand
+#    ovm_vmcontrol { -u username } [ -p password | -E ] { -h hostname } { -c command } { -v vm_name | -U vm_uuid } [ -s cpu_thread_list ... ]
+
+
+}
+
