@@ -540,3 +540,19 @@ function Invoke-OVMVMControlOnRemoteServer{
 
 }
 
+Function Set-OVMVirtualMachineConfigurationFromDefinition{
+    param(
+        [parameter(ValueFromPipelineByPropertyName,mandatory)]$Computername,
+        [switch]$ASync
+    )
+    process{
+        $VM = Get-OVMVirtualMachines -Name $Computername
+        $VMDefinition = Get-OracleServerDefinition -Computername $Computername
+        $OVMServerNodeCredential = Find-PasswordstatePassword -Search "Oracle VM Cluster Node Root" -AsCredential
+        $SshSession = New-SSHSession -ComputerName $($VM.serverId.name) -Credential $OVMServerNodeCredential
+        Set-OVMVirtualMachineResourcesCPU -VMID $VM.id.value -CPUCount $VMDefinition.CPUCount -CPUCountLimit $VMDefinition.CPUCountLimit
+        Set-OVMVirtualMachineResourcesMemory -VMID $VM.id.value -Memory $VMDefinition.Memory -MemoryLimit $VMDefinition.MemoryLimit
+        Set-OVMVirtualMachineCPUPinning -VMID $VM.id.value -CPUs $VMDefinition.PinnedCPUs -SSHSession $SshSession
+        Remove-SSHSession -SSHSession $SshSession
+    }
+}
