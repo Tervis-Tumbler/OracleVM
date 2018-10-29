@@ -366,19 +366,18 @@ function Invoke-OVMXenstorels {
 
 function Invoke-OVMXMList {
     param(
-        [parameter(Mandatory)]$Computername,
-        [parameter(Mandatory)]$Credential
+        [parameter(Mandatory,ValueFromPipelineByPropertyName)]$Computername,
+        [parameter(Mandatory,ValueFromPipelineByPropertyName)]$SSHSession,
+        $Domain
     )
     $XMListTemplate = @"
 Name                                        ID   Mem VCPUs      State   Time(s)
 {DomainID*:0004fb0000060000c5fee5922b83ac28}             {ID:1} 250000    16     r----- 5447521.2
 Domain-0                                     0  3152    20     r----- 259938.1
 "@
-    New-SSHSession -ComputerName $Computername -Credential $Credential | Out-Null
-    $CommandOutput = Invoke-SSHCommand -SSHSession $SshSessions -Command {xm list}
+    $SSHCommand = "xm list $Domain"
+    $CommandOutput = Invoke-SSHCommand -SSHSession $SshSessions -Command $SSHCommand
     $CommandOutput.output | ConvertFrom-String -TemplateContent $XMListTemplate     
-    Remove-SSHSession $SshSessions | Out-Null
-
 }
 
 function Get-OVMXenBlockID {
@@ -555,4 +554,26 @@ Function Set-OVMVirtualMachineConfigurationFromDefinition{
         Set-OVMVirtualMachineCPUPinning -VMID $VM.id.value -CPUs $VMDefinition.PinnedCPUs -SSHSession $SshSession
         Remove-SSHSession -SSHSession $SshSession
     }
+}
+
+function Get-XenPMGetCPUTopology {
+    param (
+        [Parameter(Mandatory)]$Computername,
+        [Parameter(Mandatory)]$SSHSession
+    )
+    $XenPMGetCpuTopologyCommand = "xenpm get-cpu-topology"
+    $XenPMGetCPUTopologyOutput = (Invoke-SSHCommand -Command $XenPMGetCpuTopologyCommand -SSHSession $SshSession).output
+    $XenPMGetCPUTopologyOutput | ConvertFrom-String -TemplateContent $XenPMGetCpuTopologyStringTemplate
+}
+
+function Invoke-OVMVCPUList {
+    param(
+        [parameter(Mandatory,ValueFromPipelineByPropertyName)]$Computername,
+        [parameter(Mandatory,ValueFromPipelineByPropertyName)]$SSHSession,
+        $Domain
+    )
+    $SSHCommand = "xm vcpu-list $Domain"
+    $CommandOutput = Invoke-SSHCommand -SSHSession $SshSessions -Command $SSHCommand
+    $CommandOutput.Output | ConvertFrom-String -PropertyNames Name,ID,VCPU,CPU,State,Time,"CPU Affinity"
+    #    $CommandOutput.output | ConvertFrom-String -TemplateContent $XMListTemplate     
 }

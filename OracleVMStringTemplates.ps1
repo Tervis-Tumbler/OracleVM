@@ -945,3 +945,27 @@ sectors = "{Sectors:3145728000}"
 info = "{Info:0}"
 sector-size = "{SectorSize:512}"
 "@
+
+$XenPMGetCpuTopologyStringTemplate = @"
+CPU	 core	 socket	 node
+{Thread*:CPU0}	 {Core:0}	 {Socket:0}	 {Node:0}
+{Thread*:CPU1}	 {Core:0}	 {Socket:0}	 {Node:0}
+{Thread*:CPU2}	 {Core:1}	 {Socket:0}	 {Node:0}
+{Thread*:CPU10}	 {Core:8}	 {Socket:1}	 {Node:0}
+{Thread*:CPU20}	 {Core:0}	 {Socket:0}	 {Node:1}
+{Thread*:CPU22}	 {Core:1}	 {Socket:1}	 {Node:1}
+{Thread*:CPU23}	 {Core:1}	 {Socket:1}	 {Node:1}
+{thread*:CPU39}	 {Core:12}	 {Socket:1}	 {Node:1}
+"@
+
+$XenXMVCPUListStringTemplate = @"
+CPU	 core	 socket	 node
+{Thread*:CPU0}	 {Core:0}	 {Socket:0}	 {Node:0}
+{Thread*:CPU1}	 {Core:0}	 {Socket:0}	 {Node:0}
+{Thread*:CPU2}	 {Core:1}	 {Socket:0}	 {Node:0}
+{Thread*:CPU10}	 {Core:8}	 {Socket:1}	 {Node:0}
+{Thread*:CPU20}	 {Core:0}	 {Socket:0}	 {Node:1}
+{Thread*:CPU22}	 {Core:1}	 {Socket:1}	 {Node:1}
+{Thread*:CPU23}	 {Core:1}	 {Socket:1}	 {Node:1}
+{thread*:CPU39}	 {Core:12}	 {Socket:1}	 {Node:1}
+"@
